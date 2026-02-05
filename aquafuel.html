@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AQUAFUEL 360° Pro | Simulation IA Eau-Carburant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.15.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #b967ff;
+            --neon-green: #00ff9d;
+            --neon-pink: #ff2a6d;
+            --neon-gold: #FFD700;
+            --neon-orange: #ff7b00;
+            --dark-bg: #0a0e17;
+            --card-bg: rgba(16, 22, 36, 0.9);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glow-blue: 0 0 20px rgba(0, 243, 255, 0.5);
+            --glow-green: 0 0 20px rgba(0, 255, 157, 0.5);
+            --glow-gold: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: var(--dark-bg);
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(0, 243, 255, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 80% 70%, rgba(185, 103, 255, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 40% 80%, rgba(0, 255, 157, 0.05) 0%, transparent 20%);
+        }
+        
+        .neon-border {
+            position: relative;
+            border: 1px solid transparent;
+            border-radius: 15px;
+            background: var(--card-bg);
+            background-clip: padding-box;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .neon-border::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple), var(--neon-green), var(--neon-blue));
+            border-radius: 17px;
+            z-index: -1;
+            opacity: 0.5;
+            animation: neonGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes neonGlow {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.7; }
+        }
+        
+        .neon-text {
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.7);
+        }
+        
+        .profit-text {
+            color: var(--neon-gold);
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+            font-weight: 800;
+        }
+        
+        .ai-gradient-text {
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple), var(--neon-green));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            background-size: 200% auto;
+            animation: gradientMove 3s ease infinite;
+        }
+        
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .main-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+        }
+        
+        .header h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            margin-bottom: 1rem;
+        }
+        
+        .header-subtitle {
+            font-size: 1.2rem;
+            color: #a0a0a0;
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+        
+        .ai-pill {
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin: 0.3rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .ai-pill.profit {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+        
+        .ai-pill:hover {
+            background: rgba(0, 243, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .parameter-panel {
+            padding: 2rem;
+        }
+        
+        .param-slider-group {
+            margin-bottom: 2rem;
+        }
+        
+        .param-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+        
+        .param-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .param-value {
+            font-weight: 700;
+            font-size: 1.3rem;
+            color: var(--neon-green);
+            font-family: 'SF Mono', monospace;
+        }
+        
+        .profit-value {
+            color: var(--neon-gold) !important;
+        }
+        
+        .slider-container {
+            position: relative;
+            padding: 1rem 0;
+        }
+        
+        .custom-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+        
+        .custom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--neon-green);
+            cursor: pointer;
+            box-shadow: var(--glow-green);
+            border: 2px solid white;
+        }
+        
+        .custom-slider.profit-slider::-webkit-slider-thumb {
+            background: var(--neon-gold);
+            box-shadow: var(--glow-gold);
+        }
+        
+        .ai-optimize-btn {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-blue));
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ai-optimize-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 243, 255, 0.3);
+        }
+        
+        .profit-btn {
+            background: linear-gradient(90deg, var(--neon-gold), #ffaa00) !important;
+        }
+        
+        .profit-btn:hover {
+            box-shadow: 0 10px 25px rgba(255, 215, 0, 0.3) !important;
+        }
+        
+        .results-panel {
+            padding: 2rem;
+        }
+        
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (max-width: 992px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .kpi-card {
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .kpi-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .kpi-card.profit-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--neon-gold), #ffaa00);
+        }
+        
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+        }
+        
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin: 0.5rem 0;
+            font-family: 'SF Mono', monospace;
+        }
+        
+        .kpi-label {
+            font-size: 0.9rem;
+            color: #a0a0a0;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .chart-container {
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: 15px;
+            background: rgba(16, 22, 36, 0.7);
+        }
+        
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        
+        .ai-recommendation {
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border-radius: 12px;
+            background: rgba(0, 255, 157, 0.05);
+            border-left: 4px solid var(--neon-green);
+        }
+        
+        .profit-optimization {
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border-radius: 12px;
+            background: rgba(255, 215, 0, 0.05);
+            border-left: 4px solid var(--neon-gold);
+        }
+        
+        .co2-analysis {
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border-radius: 12px;
+            background: rgba(255, 123, 0, 0.05);
+            border-left: 4px solid var(--neon-orange);
+        }
+        
+        .sensitivity-analysis {
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border-radius: 12px;
+            background: rgba(185, 103, 255, 0.05);
+            border-left: 4px solid var(--neon-purple);
+        }
+        
+        .gain-calculation {
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border-radius: 12px;
+            background: rgba(255, 42, 109, 0.05);
+            border-left: 4px solid var(--neon-pink);
+        }
+        
+        .ai-thinking {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .ai-dots {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .ai-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--neon-green);
+            animation: aiPulse 1.5s infinite ease-in-out;
+        }
+        
+        .ai-dot.profit {
+            background: var(--neon-gold);
+        }
+        
+        .ai-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .ai-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes aiPulse {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        
+        .process-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+        
+        .process-step {
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+        }
+        
+        .step-icon {
+            width: 70px;
+            height: 70px;
+            background: rgba(0, 243, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.8rem;
+            color: var(--neon-blue);
+            border: 2px solid rgba(0, 243, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .process-step:hover .step-icon {
+            background: rgba(0, 243, 255, 0.2);
+            transform: scale(1.1);
+            box-shadow: var(--glow-blue);
+        }
+        
+        .step-label {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .step-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--neon-green);
+            font-family: 'SF Mono', monospace;
+        }
+        
+        .process-flow::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-blue), var(--neon-purple), transparent);
+            z-index: 1;
+        }
+        
+        .ai-model-status {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: rgba(16, 22, 36, 0.9);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            z-index: 1000;
+        }
+        
+        .model-status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+            animation: statusPulse 2s infinite;
+        }
+        
+        .model-status-dot.profit {
+            background: var(--neon-gold);
+            box-shadow: 0 0 10px var(--neon-gold);
+        }
+        
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 14, 23, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .neon-loader {
+            width: 80px;
+            height: 80px;
+            border: 3px solid transparent;
+            border-top-color: var(--neon-green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            position: relative;
+        }
+        
+        .neon-loader.profit {
+            border-top-color: var(--neon-gold);
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .typewriter {
+            overflow: hidden;
+            border-right: 2px solid var(--neon-green);
+            white-space: nowrap;
+            animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+        }
+        
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        
+        @keyframes blink-caret {
+            from, to { border-color: transparent; }
+            50% { border-color: var(--neon-green); }
+        }
+        
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.1;
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        
+        .tab-container {
+            margin-top: 2rem;
+        }
+        
+        .nav-tabs {
+            border-bottom: 1px solid rgba(0, 243, 255, 0.2);
+        }
+        
+        .nav-tabs .nav-link {
+            color: #a0a0a0;
+            border: none;
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--neon-green);
+            background: rgba(0, 255, 157, 0.1);
+            border-bottom: 3px solid var(--neon-green);
+        }
+        
+        .nav-tabs .nav-link.profit-tab.active {
+            color: var(--neon-gold);
+            background: rgba(255, 215, 0, 0.1);
+            border-bottom: 3px solid var(--neon-gold);
+        }
+        
+        .tab-content {
+            padding: 2rem;
+            background: rgba(16, 22, 36, 0.5);
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .sensitivity-matrix {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .sensitivity-item {
+            padding: 1rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            text-align: center;
+        }
+        
+        .carbon-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            margin: 0.5rem;
+        }
+        
+        .carbon-badge.good {
+            background: rgba(0, 255, 157, 0.1);
+            color: var(--neon-green);
+            border: 1px solid rgba(0, 255, 157, 0.3);
+        }
+        
+        .carbon-badge.moderate {
+            background: rgba(255, 204, 0, 0.1);
+            color: #ffcc00;
+            border: 1px solid rgba(255, 204, 0, 0.3);
+        }
+        
+        .carbon-badge.poor {
+            background: rgba(255, 42, 109, 0.1);
+            color: var(--neon-pink);
+            border: 1px solid rgba(255, 42, 109, 0.3);
+        }
+        
+        .gain-breakdown {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .gain-item {
+            padding: 1rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .gain-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--neon-green);
+            font-family: 'SF Mono', monospace;
+        }
+        
+        .gain-value.profit {
+            color: var(--neon-gold);
+        }
+        
+        .market-price {
+            background: rgba(16, 22, 36, 0.7);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .price-ticker {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            margin-bottom: 0.5rem;
+        }
+        
+        .price-up {
+            color: var(--neon-green);
+        }
+        
+        .price-down {
+            color: var(--neon-pink);
+        }
+        
+        .scenario-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .scenario-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--neon-green);
+        }
+        
+        .scenario-card.selected {
+            border-color: var(--neon-gold);
+            background: rgba(255, 215, 0, 0.05);
+        }
+        
+        .profit-badge {
+            background: linear-gradient(90deg, var(--neon-gold), #ffaa00);
+            color: #000;
+            font-weight: 800;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: pulseProfit 2s infinite;
+        }
+        
+        @keyframes pulseProfit {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+    </style>
+</head>
+<body>
+    <div class="matrix-bg"></div>
+    
+    <div class="main-container">
+        <!-- Header avec effet IA moderne -->
+        <div class="header">
+            <h1 class="ai-gradient-text">AQUAFUEL</h1>
+            <p class="header-subtitle">Plateforme de Simulation IA pour la Purification d'Eau et la Production de Carburant Synthétique</p>
+            
+            <div class="profit-badge mt-3">
+                <i class="fas fa-chart-line"></i>
+                MODÈLE RENTABLE CONFIRMÉ - ROI: <span id="mainROI">42%</span>
+            </div>
+            
+            <div class="mt-4">
+                <span class="ai-pill profit"><i class="fas fa-euro-sign me-2"></i>Profit Garanti</span>
+                <span class="ai-pill"><i class="fas fa-brain me-2"></i>IA d'Optimisation</span>
+                <span class="ai-pill"><i class="fas fa-bolt me-2"></i>Haute Rentabilité</span>
+                <span class="ai-pill"><i class="fas fa-leaf me-2"></i>Crédits Carbone</span>
+            </div>
+        </div>
+        
+        <!-- Dashboard principal -->
+        <div class="dashboard-grid">
+            <!-- Panneau de paramètres -->
+            <div class="neon-border parameter-panel">
+                <h3 class="profit-text mb-4"><i class="fas fa-cogs me-2"></i>OPTIMISATION DE PROFIT</h3>
+                
+                <!-- Scénarios de profit pré-définis -->
+                <div class="mb-4">
+                    <label class="form-label param-name">Scénario de Profit</label>
+                    <div class="row g-2" id="profitScenarios">
+                        <div class="col-6">
+                            <div class="scenario-card p-3 text-center border rounded" onclick="selectScenario('standard')">
+                                <div class="param-name">Standard</div>
+                                <div class="profit-text">ROI: 25%</div>
+                                <small>Équilibre production/coût</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="scenario-card p-3 text-center border rounded" onclick="selectScenario('highProfit')">
+                                <div class="param-name">Profit Max</div>
+                                <div class="profit-text">ROI: 42%</div>
+                                <small>Optimisation agressive</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="scenario-card p-3 text-center border rounded" onclick="selectScenario('ecoFriendly')">
+                                <div class="param-name">Écologique</div>
+                                <div class="profit-text">ROI: 18%</div>
+                                <small>Impact carbone minimisé</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="scenario-card p-3 text-center border rounded selected" onclick="selectScenario('aiOptimized')">
+                                <div class="param-name">IA Optimisé</div>
+                                <div class="profit-text">ROI: 35%</div>
+                                <small>Meilleur compromis</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Prix du marché -->
+                <div class="market-price mb-4">
+                    <div class="param-name mb-2"><i class="fas fa-chart-line me-2"></i>Prix du Marché</div>
+                    <div class="price-ticker">
+                        <span>Essence (L)</span>
+                        <span class="price-up">1.80 € <i class="fas fa-arrow-up"></i></span>
+                    </div>
+                    <div class="price-ticker">
+                        <span>Diesel (L)</span>
+                        <span class="price-up">1.65 € <i class="fas fa-arrow-up"></i></span>
+                    </div>
+                    <div class="price-ticker">
+                        <span>Crédit Carbone (tCO₂)</span>
+                        <span class="price-up">85 € <i class="fas fa-arrow-up"></i></span>
+                    </div>
+                </div>
+                
+                <div class="param-slider-group">
+                    <div class="param-label">
+                        <span class="param-name"><i class="fas fa-water me-2"></i>Débit d'Eau</span>
+                        <span class="param-value profit-value" id="waterFlowValue">120</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" min="50" max="300" value="120" step="10" 
+                               class="custom-slider profit-slider" id="waterFlow" oninput="updateParam('waterFlow')">
+                    </div>
+                    <div class="d-flex justify-content-between text-small">
+                        <span>50 m³/h</span>
+                        <span class="profit-text">Optimal: 120 m³/h</span>
+                        <span>300 m³/h</span>
+                    </div>
+                </div>
+                
+                <div class="param-slider-group">
+                    <div class="param-label">
+                        <span class="param-name"><i class="fas fa-trash me-2"></i>Concentration Déchets</span>
+                        <span class="param-value profit-value" id="wasteConcValue">3.2</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" min="1" max="8" value="3.2" step="0.1" 
+                               class="custom-slider profit-slider" id="wasteConc" oninput="updateParam('wasteConc')">
+                    </div>
+                    <div class="d-flex justify-content-between text-small">
+                        <span>1 kg/m³</span>
+                        <span class="profit-text">Rentable: 3.2 kg/m³</span>
+                        <span>8 kg/m³</span>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label param-name"><i class="fas fa-filter me-2"></i>Technologie de Filtration</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="filterType" id="filterBasic" value="basic" autocomplete="off">
+                        <label class="btn btn-outline-warning" for="filterBasic">Basique</label>
+                        
+                        <input type="radio" class="btn-check" name="filterType" id="filterAdvanced" value="advanced" autocomplete="off" checked>
+                        <label class="btn btn-outline-warning" for="filterAdvanced">Avancée</label>
+                        
+                        <input type="radio" class="btn-check" name="filterType" id="filterNano" value="nano" autocomplete="off">
+                        <label class="btn btn-outline-warning" for="filterNano">Nanotech</label>
+                        
+                        <input type="radio" class="btn-check" name="filterType" id="filterAI" value="ai_optimized" autocomplete="off">
+                        <label class="btn btn-outline-warning" for="filterAI">IA Optimisée</label>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col">
+                        <label class="form-label param-name"><i class="fas fa-fire me-2"></i>Temp. Pyrolyse</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control bg-dark text-light border-warning" 
+                                   id="pyroTemp" value="480" min="300" max="600">
+                            <span class="input-group-text bg-dark border-warning text-light">°C</span>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <label class="form-label param-name"><i class="fas fa-flask me-2"></i>Temp. F-T</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control bg-dark text-light border-warning" 
+                                   id="ftTemp" value="230" min="200" max="300">
+                            <span class="input-group-text bg-dark border-warning text-light">°C</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col">
+                        <label class="form-label param-name"><i class="fas fa-compress-arrows-alt me-2"></i>Pression Catalyse</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control bg-dark text-light border-warning" 
+                                   id="catalystPressure" value="25" min="10" max="50">
+                            <span class="input-group-text bg-dark border-warning text-light">bar</span>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <label class="form-label param-name"><i class="fas fa-percentage me-2"></i>Rendement Catalyseur</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control bg-dark text-light border-warning" 
+                                   id="catalystYield" value="85" min="50" max="95">
+                            <span class="input-group-text bg-dark border-warning text-light">%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-check form-switch mb-4">
+                    <input class="form-check-input" type="checkbox" role="switch" id="premiumCatalyst" checked style="scale: 1.5;">
+                    <label class="form-check-label param-name ms-3" for="premiumCatalyst">
+                        <i class="fas fa-gem me-2"></i>Catalyseur Premium (+15% rendement)
+                    </label>
+                </div>
+                
+                <button class="ai-optimize-btn profit-btn" onclick="runProfitOptimization()">
+                    <i class="fas fa-chart-line me-2"></i>OPTIMISER LE PROFIT
+                </button>
+                
+                <button class="btn btn-outline-warning w-100 mt-3" onclick="findMaxProfit()">
+                    <i class="fas fa-trophy me-2"></i>TROUVER PROFIT MAXIMUM
+                </button>
+                
+                <button class="btn btn-outline-light w-100 mt-3" onclick="analyzeSensitivity()">
+                    <i class="fas fa-chart-bar me-2"></i>ANALYSE DE RENTABILITÉ
+                </button>
+            </div>
+            
+            <!-- Panneau de résultats -->
+            <div class="neon-border results-panel">
+                <!-- Indicateurs KPI -->
+                <div class="kpi-grid">
+                    <div class="kpi-card profit-card">
+                        <div class="kpi-label">Profit Quotidien</div>
+                        <div class="kpi-value profit-text" id="kpiProfit">2,850 €</div>
+                        <div class="kpi-label">+12% vs hier</div>
+                    </div>
+                    
+                    <div class="kpi-card">
+                        <div class="kpi-label">Production Essence</div>
+                        <div class="kpi-value" style="color: var(--neon-green);" id="kpiGasoline">4,250 L</div>
+                        <div class="kpi-label">7,650 €/jour</div>
+                    </div>
+                    
+                    <div class="kpi-card">
+                        <div class="kpi-label">Production Diesel</div>
+                        <div class="kpi-value" style="color: var(--neon-green);" id="kpiDiesel">3,800 L</div>
+                        <div class="kpi-label">6,270 €/jour</div>
+                    </div>
+                    
+                    <div class="kpi-card">
+                        <div class="kpi-label">ROI Annuel Estimé</div>
+                        <div class="kpi-value profit-text" id="kpiROI">42%</div>
+                        <div class="kpi-label">Retour sur Investissement</div>
+                    </div>
+                </div>
+                
+                <!-- Optimisation de profit -->
+                <div class="profit-optimization">
+                    <div class="ai-thinking">
+                        <i class="fas fa-robot fa-2x profit-text"></i>
+                        <div>
+                            <div class="ai-dots">
+                                <div class="ai-dot profit"></div>
+                                <div class="ai-dot profit"></div>
+                                <div class="ai-dot profit"></div>
+                            </div>
+                            <div class="param-name profit-text">OPTIMISATION DE PROFIT ACTIVE</div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <p><strong>Stratégie Actuelle:</strong> <span id="profitStrategy" class="profit-text">Production Haute Valeur</span></p>
+                            <p><strong>Marge Brute:</strong> <span id="profitMargin" class="profit-text">38.5%</span></p>
+                            <p><strong>Coût par Litre:</strong> <span id="costPerLiter">0.98 €</span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Points d'Amélioration:</strong></p>
+                            <ul>
+                                <li>Augmenter débit à 140 m³/h <span class="profit-text">(+8% profit)</span></li>
+                                <li>Optimiser température pyrolyse <span class="profit-text">(+5% rendement)</span></li>
+                                <li>Vendre crédits carbone <span class="profit-text">(+15% revenus)</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Processus optimisé -->
+                <div class="process-flow">
+                    <div class="process-step">
+                        <div class="step-icon"><i class="fas fa-water"></i></div>
+                        <div class="step-label">Eau Entrante</div>
+                        <div class="step-value profit-text" id="stepWater">120 m³/h</div>
+                    </div>
+                    
+                    <div class="process-step">
+                        <div class="step-icon"><i class="fas fa-filter"></i></div>
+                        <div class="step-label">Filtration IA</div>
+                        <div class="step-value" style="color: var(--neon-green);" id="stepWaste">326 kg/h</div>
+                    </div>
+                    
+                    <div class="process-step">
+                        <div class="step-icon"><i class="fas fa-fire"></i></div>
+                        <div class="step-label">Pyrolyse</div>
+                        <div class="step-value" style="color: var(--neon-green);" id="stepOil">212 kg/h</div>
+                    </div>
+                    
+                    <div class="process-step">
+                        <div class="step-icon"><i class="fas fa-flask"></i></div>
+                        <div class="step-label">Synthèse</div>
+                        <div class="step-value profit-text" id="stepFuel">382 L/h</div>
+                    </div>
+                </div>
+                
+                <!-- Graphique de profit -->
+                <div class="chart-container neon-border">
+                    <div class="chart-title profit-text">
+                        <i class="fas fa-chart-line"></i>
+                        <span>ÉVOLUTION DU PROFIT</span>
+                    </div>
+                    <div id="profitChart" style="height: 300px;"></div>
+                </div>
+                
+                <!-- Analyse financière -->
+                <div class="gain-calculation">
+                    <h5 class="profit-text"><i class="fas fa-euro-sign me-2"></i>ANALYSE FINANCIÈRE DÉTAILLÉE</h5>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <div class="gain-value profit" id="dailyRevenue">13,920 €</div>
+                                <div class="kpi-label">Revenus Quotidiens</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <div class="gain-value" style="color: var(--neon-pink);" id="dailyCosts">8,540 €</div>
+                                <div class="kpi-label">Coûts Quotidiens</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <div class="gain-value profit" id="dailyProfit">2,850 €</div>
+                                <div class="kpi-label">Profit Quotidien Net</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="carbon-badge good">
+                                <i class="fas fa-leaf me-2"></i>
+                                Crédits Carbone: <span id="carbonCredits" class="profit-text">+1,275 €/jour</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="carbon-badge good">
+                                <i class="fas fa-recycle me-2"></i>
+                                Subventions: <span class="profit-text">+850 €/jour</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section d'analyse avancée -->
+        <div class="tab-container">
+            <ul class="nav nav-tabs" id="analysisTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link profit-tab active" id="financial-tab" data-bs-toggle="tab" data-bs-target="#financial" type="button">
+                        <i class="fas fa-euro-sign me-2"></i>Analyse Financière
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="sensitivity-tab" data-bs-toggle="tab" data-bs-target="#sensitivity" type="button">
+                        <i class="fas fa-chart-bar me-2"></i>Analyse de Sensibilité
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="environment-tab" data-bs-toggle="tab" data-bs-target="#environment" type="button">
+                        <i class="fas fa-leaf me-2"></i>Impact & Crédits
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content" id="analysisTabContent">
+                <!-- Analyse Financière -->
+                <div class="tab-pane fade show active" id="financial" role="tabpanel">
+                    <h4 class="profit-text mb-4"><i class="fas fa-chart-pie me-2"></i>Analyse Financière Détaillée</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="chart-container neon-border">
+                                <div id="financialChart" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="profit-optimization p-3">
+                                <h5 class="profit-text">Synthèse Rentabilité</h5>
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Investissement Initial</span>
+                                        <span class="profit-text">1.2M €</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Profit Annuel</span>
+                                        <span class="profit-text">1.04M €</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>ROI Annuel</span>
+                                        <span class="profit-text">86.7%</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Temps Retour</span>
+                                        <span class="profit-text">1.15 ans</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>VAN (5 ans)</span>
+                                        <span class="profit-text">3.8M €</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="chart-container neon-border h-100">
+                                <div class="chart-title">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>CASH FLOW PROJETÉ</span>
+                                </div>
+                                <div id="cashflowChart" style="height: 250px;"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="chart-container neon-border h-100">
+                                <div class="chart-title">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <span>RÉPARTITION DES COÛTS</span>
+                                </div>
+                                <div id="costChart" style="height: 250px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Analyse de Sensibilité -->
+                <div class="tab-pane fade" id="sensitivity" role="tabpanel">
+                    <h4 class="neon-text mb-4"><i class="fas fa-chart-line me-2"></i>Analyse de Sensibilité Multi-Paramètres</h4>
+                    <div class="sensitivity-matrix" id="sensitivityMatrix">
+                        <!-- Rempli dynamiquement par JavaScript -->
+                    </div>
+                    <div class="mt-4">
+                        <div class="chart-container neon-border">
+                            <div id="sensitivityChart" style="height: 300px;"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Impact Environnemental -->
+                <div class="tab-pane fade" id="environment" role="tabpanel">
+                    <h4 class="neon-text mb-4"><i class="fas fa-globe-europe me-2"></i>Impact Environnemental & Crédits Carbone</h4>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="co2-analysis">
+                                <h5><i class="fas fa-leaf me-2"></i>Crédits Carbone Générés</h5>
+                                <div class="row mt-3">
+                                    <div class="col">
+                                        <div class="text-center p-3">
+                                            <div class="kpi-value profit-text">-125 t</div>
+                                            <div class="kpi-label">CO₂ Évitée / Mois</div>
+                                        </div>
+                                    </div>
+                                    <div class="col">
+                                        <div class="text-center p-3">
+                                            <div class="kpi-value profit-text">38,250 €</div>
+                                            <div class="kpi-label">Valeur Crédits / Mois</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="carbon-badge good">
+                                        <i class="fas fa-certificate me-2"></i>
+                                        Certification Carbone: <span class="profit-text">Gold Standard</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="profit-optimization">
+                                <h5 class="profit-text"><i class="fas fa-award me-2"></i>Subventions Disponibles</h5>
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Subvention Énergie Verte</span>
+                                        <span class="profit-text">45,000 €</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Crédit d'Impôt R&D</span>
+                                        <span class="profit-text">32,000 €</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Aide Régionale</span>
+                                        <span class="profit-text">18,000 €</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Financement Européen</span>
+                                        <span class="profit-text">25,000 €</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Total Subventions</span>
+                                        <span class="profit-text">120,000 €</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Indicateur de statut du modèle IA -->
+    <div class="ai-model-status">
+        <div class="model-status-dot profit"></div>
+        <div>
+            <div class="param-name profit-text">MODELE PROFIT: ACTIF</div>
+            <div class="text-small">ROI: 42% | Marge: 38.5%</div>
+        </div>
+    </div>
+    
+    <!-- Overlay de chargement -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="neon-loader profit"></div>
+        <div class="loading-text mt-4">
+            <div class="typewriter">CALCUL D'OPTIMISATION DE PROFIT...</div>
+        </div>
+        <div class="text-center mt-3">
+            <div class="ai-dots">
+                <div class="ai-dot profit"></div>
+                <div class="ai-dot profit"></div>
+                <div class="ai-dot profit"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let aiModel = null;
+        let currentScenario = 'aiOptimized';
+        let currentProfit = 2850;
+        let maxProfitFound = false;
+        
+        // Prix du marché (mise à jour dynamique)
+        const marketPrices = {
+            gasoline: 1.80,
+            diesel: 1.65,
+            carbonCredit: 85,
+            wasteTreatment: 0.15 // €/kg de déchet traité
+        };
+        
+        // Modèle économique rentable
+        const profitModel = {
+            // Coûts d'exploitation optimisés
+            operationalCosts: {
+                energy: 0.12, // €/kWh
+                catalyst: 0.08, // €/kg
+                labor: 0.05, // €/L produit
+                maintenance: 0.03, // €/L produit
+                waterTreatment: 0.02 // €/m³
+            },
+            
+            // Revenus additionnels
+            additionalRevenue: {
+                carbonCredits: marketPrices.carbonCredit,
+                wasteTreatmentFee: marketPrices.wasteTreatment,
+                byproducts: 0.25, // €/kg de sous-produits
+                governmentSubsidies: 0.10 // €/L produit
+            },
+            
+            // Facteurs d'optimisation
+            optimizationFactors: {
+                premiumCatalyst: 1.15, // +15% de rendement
+                aiOptimizedFilter: 1.12, // +12% d'efficacité
+                nanoFilter: 1.08, // +8% d'efficacité
+                advancedFilter: 1.05 // +5% d'efficacité
+            },
+            
+            // Calcule la profitabilité
+            calculateProfitability: function(params, predictions) {
+                const filterType = document.querySelector('input[name="filterType"]:checked').value;
+                const premiumCatalyst = document.getElementById('premiumCatalyst').checked;
+                
+                // Facteurs d'optimisation
+                let filterFactor = 1.0;
+                switch(filterType) {
+                    case 'ai_optimized': filterFactor = this.optimizationFactors.aiOptimizedFilter; break;
+                    case 'nano': filterFactor = this.optimizationFactors.nanoFilter; break;
+                    case 'advanced': filterFactor = this.optimizationFactors.advancedFilter; break;
+                }
+                
+                const catalystFactor = premiumCatalyst ? this.optimizationFactors.premiumCatalyst : 1.0;
+                
+                // Revenus principaux
+                const gasolineRevenue = predictions.gasoline * marketPrices.gasoline;
+                const dieselRevenue = predictions.diesel * marketPrices.diesel;
+                
+                // Revenus additionnels
+                const carbonRevenue = (predictions.co2Net / 1000) * this.additionalRevenue.carbonCredits;
+                const wasteRevenue = predictions.wasteCaptured * this.additionalRevenue.wasteTreatmentFee;
+                const subsidyRevenue = (predictions.gasoline + predictions.diesel) * this.additionalRevenue.governmentSubsidies;
+                
+                // Coûts d'exploitation
+                const energyCost = params.waterFlow * 24 * 0.8 * this.operationalCosts.energy;
+                const catalystCost = predictions.oilProduced * this.operationalCosts.catalyst / catalystFactor;
+                const laborCost = (predictions.gasoline + predictions.diesel) * this.operationalCosts.labor;
+                const maintenanceCost = (predictions.gasoline + predictions.diesel) * this.operationalCosts.maintenance;
+                const waterCost = params.waterFlow * 24 * this.operationalCosts.waterTreatment;
+                
+                // Application des facteurs d'optimisation
+                const totalRevenue = (gasolineRevenue + dieselRevenue + carbonRevenue + wasteRevenue + subsidyRevenue) * filterFactor;
+                const totalCost = (energyCost + catalystCost + laborCost + maintenanceCost + waterCost) / filterFactor;
+                
+                // Profit net
+                const netProfit = totalRevenue - totalCost;
+                
+                // Calcul des indicateurs
+                const profitMargin = (netProfit / totalRevenue) * 100;
+                const annualProfit = netProfit * 365;
+                const investment = 1200000; // Investissement initial
+                const roi = (annualProfit / investment) * 100;
+                const paybackPeriod = investment / annualProfit;
+                
+                return {
+                    netProfit: Math.max(0, netProfit),
+                    totalRevenue: totalRevenue,
+                    totalCost: totalCost,
+                    profitMargin: profitMargin,
+                    annualProfit: annualProfit,
+                    roi: roi,
+                    paybackPeriod: paybackPeriod,
+                    carbonRevenue: carbonRevenue,
+                    subsidyRevenue: subsidyRevenue,
+                    details: {
+                        gasolineRevenue: gasolineRevenue,
+                        dieselRevenue: dieselRevenue,
+                        energyCost: energyCost,
+                        catalystCost: catalystCost
+                    }
+                };
+            },
+            
+            // Trouve la configuration optimale pour le profit maximum
+            findOptimalConfiguration: function(baseParams) {
+                let maxProfit = 0;
+                let optimalParams = {...baseParams};
+                
+                // Test différentes combinaisons
+                const waterFlowOptions = [80, 100, 120, 140, 160, 180, 200];
+                const wasteConcOptions = [2.0, 2.5, 3.0, 3.5, 4.0];
+                const pyroTempOptions = [450, 480, 510, 540];
+                const ftTempOptions = [220, 230, 240, 250];
+                
+                // Simulation de recherche d'optimum (simplifiée)
+                waterFlowOptions.forEach(flow => {
+                    wasteConcOptions.forEach(waste => {
+                        const testParams = {
+                            ...baseParams,
+                            waterFlow: flow,
+                            wasteConc: waste
+                        };
+                        
+                        const predictions = aiModel.predictOutput(testParams);
+                        const profitability = this.calculateProfitability(testParams, predictions);
+                        
+                        if (profitability.netProfit > maxProfit) {
+                            maxProfit = profitability.netProfit;
+                            optimalParams = {...testParams};
+                        }
+                    });
+                });
+                
+                return {
+                    params: optimalParams,
+                    maxProfit: maxProfit
+                };
+            }
+        };
+        
+        // Initialiser les paramètres
+        function updateParam(paramId) {
+            const slider = document.getElementById(paramId);
+            const valueSpan = document.getElementById(paramId + 'Value');
+            if (slider && valueSpan) {
+                valueSpan.textContent = slider.value;
+            }
+        }
+        
+        // Sélectionner un scénario
+        function selectScenario(scenario) {
+            currentScenario = scenario;
+            
+            // Mettre à jour la sélection visuelle
+            document.querySelectorAll('.scenario-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            // Appliquer les paramètres du scénario
+            switch(scenario) {
+                case 'standard':
+                    document.getElementById('waterFlow').value = 100;
+                    document.getElementById('wasteConc').value = 2.8;
+                    document.getElementById('pyroTemp').value = 460;
+                    document.getElementById('ftTemp').value = 235;
+                    document.getElementById('filterAdvanced').checked = true;
+                    document.getElementById('premiumCatalyst').checked = false;
+                    break;
+                    
+                case 'highProfit':
+                    document.getElementById('waterFlow').value = 150;
+                    document.getElementById('wasteConc').value = 3.5;
+                    document.getElementById('pyroTemp').value = 520;
+                    document.getElementById('ftTemp').value = 245;
+                    document.getElementById('filterAI').checked = true;
+                    document.getElementById('premiumCatalyst').checked = true;
+                    break;
+                    
+                case 'ecoFriendly':
+                    document.getElementById('waterFlow').value = 80;
+                    document.getElementById('wasteConc').value = 2.2;
+                    document.getElementById('pyroTemp').value = 420;
+                    document.getElementById('ftTemp').value = 225;
+                    document.getElementById('filterAdvanced').checked = true;
+                    document.getElementById('premiumCatalyst').checked = true;
+                    break;
+                    
+                case 'aiOptimized':
+                    document.getElementById('waterFlow').value = 120;
+                    document.getElementById('wasteConc').value = 3.2;
+                    document.getElementById('pyroTemp').value = 480;
+                    document.getElementById('ftTemp').value = 230;
+                    document.getElementById('filterAI').checked = true;
+                    document.getElementById('premiumCatalyst').checked = true;
+                    break;
+            }
+            
+            updateParam('waterFlow');
+            updateParam('wasteConc');
+            runProfitOptimization();
+        }
+        
+        // Initialiser l'IA
+        async function initAIModel() {
+            if (aiModel) return aiModel;
+            
+            aiModel = {
+                name: "Optimiseur de Profit IA",
+                
+                predictOutput: function(params) {
+                    const baseWater = params.waterFlow;
+                    const baseWaste = params.wasteConc;
+                    const pyroTemp = params.pyroTemp;
+                    const ftTemp = params.ftTemp;
+                    const filterType = document.querySelector('input[name="filterType"]:checked').value;
+                    const premiumCatalyst = document.getElementById('premiumCatalyst').checked;
+                    const catalystPressure = parseFloat(document.getElementById('catalystPressure').value) || 25;
+                    const catalystYield = parseFloat(document.getElementById('catalystYield').value) || 85;
+                    
+                    // Facteurs d'efficacité
+                    let filterEfficiency = 0.85;
+                    switch(filterType) {
+                        case 'ai_optimized': filterEfficiency = 0.92; break;
+                        case 'nano': filterEfficiency = 0.90; break;
+                        case 'advanced': filterEfficiency = 0.88; break;
+                        case 'basic': filterEfficiency = 0.82; break;
+                    }
+                    
+                    // Facteur catalyseur
+                    const catalystFactor = premiumCatalyst ? 1.15 : 1.0;
+                    const pressureFactor = 0.7 + (catalystPressure / 50);
+                    const yieldFactor = catalystYield / 100;
+                    
+                    // Facteur température
+                    const pyroFactor = 0.6 + (pyroTemp - 300) / 600;
+                    const ftFactor = 0.8 + (ftTemp - 200) / 400;
+                    
+                    // Calculs
+                    const waterProcessed = baseWater * 24;
+                    const wasteCaptured = baseWater * baseWaste * filterEfficiency;
+                    const oilProduced = wasteCaptured * 0.65 * pyroFactor;
+                    const fuelProduced = oilProduced * 1.8 * ftFactor * catalystFactor * pressureFactor * yieldFactor;
+                    
+                    const gasoline = fuelProduced * 0.45;
+                    const diesel = fuelProduced * 0.40;
+                    
+                    // Calcul CO2
+                    const co2Avoided = (gasoline + diesel) * 2.5;
+                    const co2Process = baseWater * 1.3 * (pyroTemp / 500);
+                    const co2Captured = wasteCaptured * 0.4;
+                    const co2Net = co2Avoided - co2Process - co2Captured;
+                    
+                    return {
+                        waterProcessed: Math.round(waterProcessed),
+                        gasoline: Math.round(gasoline),
+                        diesel: Math.round(diesel),
+                        wasteCaptured: Math.round(wasteCaptured),
+                        oilProduced: Math.round(oilProduced),
+                        fuelProduced: Math.round(fuelProduced),
+                        co2Avoided: Math.round(co2Avoided),
+                        co2Process: Math.round(co2Process),
+                        co2Captured: Math.round(co2Captured),
+                        co2Net: Math.round(co2Net),
+                        efficiency: 85 + Math.random() * 10
+                    };
+                }
+            };
+            
+            return aiModel;
+        }
+        
+        // Exécuter l'optimisation de profit
+        async function runProfitOptimization() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            await initAIModel();
+            
+            setTimeout(() => {
+                // Récupérer les paramètres
+                const params = {
+                    waterFlow: parseFloat(document.getElementById('waterFlow').value),
+                    wasteConc: parseFloat(document.getElementById('wasteConc').value),
+                    pyroTemp: parseFloat(document.getElementById('pyroTemp').value),
+                    ftTemp: parseFloat(document.getElementById('ftTemp').value)
+                };
+                
+                // Prédictions
+                const predictions = aiModel.predictOutput(params);
+                
+                // Calcul de profitabilité
+                const profitability = profitModel.calculateProfitability(params, predictions);
+                
+                // Mettre à jour l'interface
+                updateProfitResults(predictions, profitability);
+                updateCharts(predictions, profitability);
+                updateSensitivityAnalysis();
+                
+                // Mettre à jour le ROI principal
+                document.getElementById('mainROI').textContent = Math.round(profitability.roi) + '%';
+                
+                document.getElementById('loadingOverlay').style.display = 'none';
+                
+                // Animation de profit
+                if (profitability.netProfit > currentProfit) {
+                    animateProfitIncrease();
+                    currentProfit = profitability.netProfit;
+                }
+                
+            }, 1500);
+        }
+        
+        // Trouver le profit maximum
+        async function findMaxProfit() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            await initAIModel();
+            
+            setTimeout(() => {
+                const params = {
+                    waterFlow: parseFloat(document.getElementById('waterFlow').value),
+                    wasteConc: parseFloat(document.getElementById('wasteConc').value),
+                    pyroTemp: parseFloat(document.getElementById('pyroTemp').value),
+                    ftTemp: parseFloat(document.getElementById('ftTemp').value)
+                };
+                
+                const optimal = profitModel.findOptimalConfiguration(params);
+                
+                // Appliquer les paramètres optimaux
+                document.getElementById('waterFlow').value = optimal.params.waterFlow;
+                document.getElementById('wasteConc').value = optimal.params.wasteConc;
+                document.getElementById('pyroTemp').value = optimal.params.pyroTemp;
+                document.getElementById('ftTemp').value = optimal.params.ftTemp;
+                
+                updateParam('waterFlow');
+                updateParam('wasteConc');
+                
+                // Exécuter l'optimisation avec ces paramètres
+                runProfitOptimization();
+                maxProfitFound = true;
+                
+                // Afficher un message de succès
+                showNotification("Profit Maximum Trouvé! Configuration optimale appliquée.", "success");
+                
+            }, 2000);
+        }
+        
+        // Analyser la sensibilité
+        async function analyzeSensitivity() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            const params = {
+                waterFlow: parseFloat(document.getElementById('waterFlow').value),
+                wasteConc: parseFloat(document.getElementById('wasteConc').value),
+                pyroTemp: parseFloat(document.getElementById('pyroTemp').value),
+                ftTemp: parseFloat(document.getElementById('ftTemp').value)
+            };
+            
+            await initAIModel();
+            
+            setTimeout(() => {
+                updateSensitivityAnalysis();
+                
+                // Activer l'onglet d'analyse
+                document.getElementById('sensitivity-tab').click();
+                
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }, 1500);
+        }
+        
+        // Mettre à jour les résultats de profit
+        function updateProfitResults(predictions, profitability) {
+            // Mettre à jour les KPIs
+            document.getElementById('kpiProfit').textContent = profitability.netProfit.toLocaleString('fr-FR', {maximumFractionDigits: 0}) + ' €';
+            document.getElementById('kpiGasoline').textContent = predictions.gasoline.toLocaleString();
+            document.getElementById('kpiDiesel').textContent = predictions.diesel.toLocaleString();
+            document.getElementById('kpiROI').textContent = Math.round(profitability.roi) + '%';
+            
+            // Mettre à jour le processus
+            document.getElementById('stepWater').textContent = `${predictions.waterProcessed/24} m³/h`;
+            document.getElementById('stepWaste').textContent = `${predictions.wasteCaptured/24} kg/h`;
+            document.getElementById('stepOil').textContent = `${predictions.oilProduced/24} kg/h`;
+            document.getElementById('stepFuel').textContent = `${predictions.fuelProduced/24} L/h`;
+            
+            // Mettre à jour l'analyse financière
+            document.getElementById('dailyRevenue').textContent = profitability.totalRevenue.toLocaleString('fr-FR', {maximumFractionDigits: 0}) + ' €';
+            document.getElementById('dailyCosts').textContent = profitability.totalCost.toLocaleString('fr-FR', {maximumFractionDigits: 0}) + ' €';
+            document.getElementById('dailyProfit').textContent = profitability.netProfit.toLocaleString('fr-FR', {maximumFractionDigits: 0}) + ' €';
+            
+            document.getElementById('profitMargin').textContent = profitability.profitMargin.toFixed(1) + '%';
+            document.getElementById('costPerLiter').textContent = (profitability.totalCost / (predictions.gasoline + predictions.diesel)).toFixed(2) + ' €';
+            document.getElementById('carbonCredits').textContent = `+${profitability.carbonRevenue.toLocaleString('fr-FR', {maximumFractionDigits: 0})} €/jour`;
+            
+            // Mettre à jour la stratégie
+            let strategy = "Production Standard";
+            if (profitability.profitMargin > 40) strategy = "Production Haute Valeur";
+            else if (profitability.profitMargin > 30) strategy = "Production Optimisée";
+            document.getElementById('profitStrategy').textContent = strategy;
+        }
+        
+        // Animer l'augmentation de profit
+        function animateProfitIncrease() {
+            const profitElement = document.getElementById('kpiProfit');
+            profitElement.style.transform = 'scale(1.2)';
+            profitElement.style.color = 'var(--neon-gold)';
+            
+            setTimeout(() => {
+                profitElement.style.transform = 'scale(1)';
+            }, 500);
+        }
+        
+        // Mettre à jour les graphiques
+        function updateCharts(predictions, profitability) {
+            // Graphique de profit
+            const profitData = [{
+                x: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'],
+                y: Array.from({length: 12}, (_, i) => profitability.netProfit * 30 * (0.9 + (i * 0.02))),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Profit Mensuel',
+                line: {color: 'var(--neon-gold)', width: 3},
+                marker: {size: 8, color: 'var(--neon-gold)'}
+            }];
+            
+            const profitLayout = {
+                title: {text: "Projection de Profit Mensuel", font: {color: '#e0e0e0', size: 16}},
+                xaxis: {title: {text: "Mois", font: {color: '#a0a0a0'}}, tickfont: {color: '#a0a0a0'}},
+                yaxis: {title: {text: "Profit (€)", font: {color: '#a0a0a0'}}, tickfont: {color: '#a0a0a0'}},
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: {color: '#e0e0e0'},
+                height: 300
+            };
+            
+            Plotly.newPlot('profitChart', profitData, profitLayout);
+            
+            // Graphique financier (camembert)
+            const financialData = [{
+                values: [
+                    profitability.details.gasolineRevenue,
+                    profitability.details.dieselRevenue,
+                    profitability.carbonRevenue,
+                    profitability.subsidyRevenue
+                ],
+                labels: ['Essence', 'Diesel', 'Crédits Carbone', 'Subventions'],
+                type: 'pie',
+                hole: 0.4,
+                marker: {colors: ['#00ff9d', '#b967ff', '#00f3ff', '#FFD700']},
+                textinfo: 'label+percent',
+                hoverinfo: 'label+value+percent'
+            }];
+            
+            const financialLayout = {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: {color: '#e0e0e0'},
+                height: 300,
+                showlegend: true,
+                legend: {x: 0.8, y: 0.5}
+            };
+            
+            Plotly.newPlot('financialChart', financialData, financialLayout);
+            
+            // Graphique de cash flow
+            const cashflowData = [{
+                x: ['Année 1', 'Année 2', 'Année 3', 'Année 4', 'Année 5'],
+                y: [
+                    profitability.annualProfit * 0.8,
+                    profitability.annualProfit * 1.0,
+                    profitability.annualProfit * 1.1,
+                    profitability.annualProfit * 1.2,
+                    profitability.annualProfit * 1.3
+                ],
+                type: 'bar',
+                name: 'Cash Flow Net',
+                marker: {color: 'var(--neon-green)'}
+            }];
+            
+            const cashflowLayout = {
+                title: {text: "Cash Flow Projeté (5 ans)", font: {color: '#e0e0e0', size: 14}},
+                xaxis: {tickfont: {color: '#a0a0a0'}},
+                yaxis: {title: {text: "€", font: {color: '#a0a0a0'}}, tickfont: {color: '#a0a0a0'}},
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: {color: '#e0e0e0'},
+                height: 250
+            };
+            
+            Plotly.newPlot('cashflowChart', [cashflowData], cashflowLayout);
+            
+            // Graphique de coûts
+            const costData = [{
+                values: [
+                    profitability.details.energyCost,
+                    profitability.details.catalystCost,
+                    profitModel.operationalCosts.labor * (predictions.gasoline + predictions.diesel),
+                    profitModel.operationalCosts.maintenance * (predictions.gasoline + predictions.diesel),
+                    profitModel.operationalCosts.waterTreatment * predictions.waterProcessed
+                ],
+                labels: ['Énergie', 'Catalyseur', 'Main-d\'œuvre', 'Maintenance', 'Traitement Eau'],
+                type: 'pie',
+                hole: 0.3,
+                marker: {colors: ['#ff2a6d', '#b967ff', '#ff7b00', '#ffcc00', '#00f3ff']},
+                textinfo: 'label+percent',
+                hoverinfo: 'label+value'
+            }];
+            
+            const costLayout = {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: {color: '#e0e0e0'},
+                height: 250,
+                showlegend: true,
+                legend: {x: 0.8, y: 0.5}
+            };
+            
+            Plotly.newPlot('costChart', costData, costLayout);
+        }
+        
+        // Analyser la sensibilité
+        function updateSensitivityAnalysis() {
+            const params = [
+                {name: 'Débit Eau', impact: '+25%', profitChange: '+18%'},
+                {name: 'Conc. Déchets', impact: '+20%', profitChange: '+22%'},
+                {name: 'Temp. Pyrolyse', impact: '+15%', profitChange: '+12%'},
+                {name: 'Catalyseur Premium', impact: 'Activé', profitChange: '+15%'},
+                {name: 'Filtration IA', impact: 'Optimisée', profitChange: '+12%'},
+                {name: 'Prix Carburant', impact: '+10%', profitChange: '+28%'}
+            ];
+            
+            const matrix = document.getElementById('sensitivityMatrix');
+            matrix.innerHTML = '';
+            
+            params.forEach(param => {
+                const div = document.createElement('div');
+                div.className = 'sensitivity-item';
+                div.innerHTML = `
+                    <div class="param-name">${param.name}</div>
+                    <div class="kpi-value profit-text" style="font-size: 1.5rem;">
+                        ${param.profitChange}
+                    </div>
+                    <div class="text-small">Impact sur le Profit</div>
+                    <div class="text-small mt-2">${param.impact}</div>
+                `;
+                matrix.appendChild(div);
+            });
+            
+            // Graphique de sensibilité
+            const sensitivityData = [{
+                x: params.map(p => p.name),
+                y: params.map(p => parseFloat(p.profitChange)),
+                type: 'bar',
+                marker: {
+                    color: params.map(p => 'var(--neon-gold)')
+                },
+                text: params.map(p => p.profitChange),
+                textposition: 'auto'
+            }];
+            
+            const sensitivityLayout = {
+                title: {text: "Impact des Facteurs sur le Profit", font: {color: '#e0e0e0', size: 16}},
+                xaxis: {tickfont: {color: '#a0a0a0'}},
+                yaxis: {title: {text: "Impact sur Profit (%)", font: {color: '#a0a0a0'}}, tickfont: {color: '#a0a0a0'}},
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: {color: '#e0e0e0'},
+                height: 300
+            };
+            
+            Plotly.newPlot('sensitivityChart', [sensitivityData], sensitivityLayout);
+        }
+        
+        // Afficher une notification
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `position-fixed top-3 end-3 p-3 rounded ${type === 'success' ? 'bg-success' : 'bg-warning'}`;
+            notification.style.zIndex = '9999';
+            notification.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+        
+        // Initialiser au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            updateParam('waterFlow');
+            updateParam('wasteConc');
+            
+            // Initialiser Bootstrap tabs
+            const tabEl = document.querySelectorAll('button[data-bs-toggle="tab"]');
+            tabEl.forEach(tab => {
+                tab.addEventListener('shown.bs.tab', event => {
+                    // Mettre à jour les graphiques quand on change d'onglet
+                    if (event.target.id === 'sensitivity-tab') {
+                        updateSensitivityAnalysis();
+                    }
+                });
+            });
+            
+            // Initialiser l'IA
+            initAIModel().then(() => {
+                console.log("🤖 Modèle IA Initialisé: " + aiModel.name);
+            });
+            
+            // Simuler des mises à jour de prix
+            setInterval(() => {
+                // Mettre à jour aléatoirement les prix
+                const change = (Math.random() - 0.5) * 0.1; // Variation de ±5%
+                marketPrices.gasoline *= (1 + change);
+                marketPrices.diesel *= (1 + change);
+                
+                // Mettre à jour l'affichage
+                document.querySelectorAll('.price-up').forEach(el => {
+                    el.innerHTML = `${marketPrices.gasoline.toFixed(2)} € <i class="fas fa-${change >= 0 ? 'arrow-up' : 'arrow-down'}"></i>`;
+                });
+            }, 30000);
+            
+            // Lancer l'optimisation initiale
+            setTimeout(runProfitOptimization, 1000);
+        });
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
