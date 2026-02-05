@@ -178,11 +178,7 @@ Les calculs sont basés sur :
 ## 📄 Licence
 Propriétaire - Tous droits réservés © 2024 AQUAFUEL Technologies
 
-## 📞 Support
-Pour le support technique ou les questions :
-- Email : support@aquafuel-tech.com
-- Documentation : docs.aquafuel-tech.com
-- Forum : community.aquafuel-tech.com
+
 
 ## ⚠️ Notes importantes
 - Les simulations sont basées sur des modèles théoriques
